@@ -23,7 +23,7 @@ resource "aws_subnet" "devops" {
 }
 
 resource "aws_internet_gateway" "devops_igw" {
-  vpc_id = aws_vpc.devopsshack_vpc.id
+  vpc_id = aws_vpc.devops_vpc.id
 
   tags = {
     Name = "devops-igw"
@@ -92,7 +92,7 @@ resource "aws_eks_cluster" "devops" {
 
   vpc_config {
     subnet_ids         = aws_subnet.devops_subnet[*].id
-    security_group_ids = [aws_security_group.devopsshack_cluster_sg.id]
+    security_group_ids = [aws_security_group.devops_cluster_sg.id]
   }
 }
 
@@ -100,7 +100,7 @@ resource "aws_eks_node_group" "devops" {
   cluster_name    = aws_eks_cluster.devops.name
   node_group_name = "devops-node-group"
   node_role_arn   = aws_iam_role.devops_node_group_role.arn
-  subnet_ids      = aws_subnet.devopsshack_subnet[*].id
+  subnet_ids      = aws_subnet.devops_subnet[*].id
 
   scaling_config {
     desired_size = 3
@@ -112,7 +112,7 @@ resource "aws_eks_node_group" "devops" {
 
   remote_access {
     ec2_ssh_key = var.ssh_key_name
-    source_security_group_ids = [aws_security_group.devopsshack_node_sg.id]
+    source_security_group_ids = [aws_security_group.devops_node_sg.id]
   }
 }
 
