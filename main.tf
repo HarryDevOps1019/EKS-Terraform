@@ -1,7 +1,8 @@
 provider "aws" {
-  region = "us-east-1a"
+  region = "us-east-1"
 }
 
+# VPC
 resource "aws_vpc" "devops" {
   cidr_block = "10.0.0.0/16"
 
@@ -10,6 +11,7 @@ resource "aws_vpc" "devops" {
   }
 }
 
+# Subnets
 resource "aws_subnet" "devops" {
   count = 2
   vpc_id                  = aws_vpc.devops.id
@@ -22,16 +24,18 @@ resource "aws_subnet" "devops" {
   }
 }
 
+# Internet Gateway
 resource "aws_internet_gateway" "devops_igw" {
-  vpc_id = aws_vpc.devops_vpc.id
+  vpc_id = aws_vpc.devops.id
 
   tags = {
     Name = "devops-igw"
   }
 }
 
+# Route Table
 resource "aws_route_table" "devops_route_table" {
-  vpc_id = aws_vpc.devops_vpc.id
+  vpc_id = aws_vpc.devops.id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -43,14 +47,16 @@ resource "aws_route_table" "devops_route_table" {
   }
 }
 
+# Associate Route Table with Subnets
 resource "aws_route_table_association" "a" {
   count          = 2
-  subnet_id      = aws_subnet.devops_subnet[count.index].id
+  subnet_id      = aws_subnet.devops[count.index].id
   route_table_id = aws_route_table.devops_route_table.id
 }
 
+# Security Groups
 resource "aws_security_group" "devops_cluster_sg" {
-  vpc_id = aws_vpc.devops_vpc.id
+  vpc_id = aws_vpc.devops.id
 
   egress {
     from_port   = 0
@@ -65,7 +71,7 @@ resource "aws_security_group" "devops_cluster_sg" {
 }
 
 resource "aws_security_group" "devops_node_sg" {
-  vpc_id = aws_vpc.devops_vpc.id
+  vpc_id = aws_vpc.devops.id
 
   ingress {
     from_port   = 0
@@ -86,21 +92,23 @@ resource "aws_security_group" "devops_node_sg" {
   }
 }
 
+# EKS Cluster
 resource "aws_eks_cluster" "devops" {
   name     = "devops-cluster"
   role_arn = aws_iam_role.devops_cluster_role.arn
 
   vpc_config {
-    subnet_ids         = aws_subnet.devops_subnet[*].id
+    subnet_ids         = aws_subnet.devops[*].id
     security_group_ids = [aws_security_group.devops_cluster_sg.id]
   }
 }
 
+# EKS Node Group
 resource "aws_eks_node_group" "devops" {
   cluster_name    = aws_eks_cluster.devops.name
   node_group_name = "devops-node-group"
   node_role_arn   = aws_iam_role.devops_node_group_role.arn
-  subnet_ids      = aws_subnet.devops_subnet[*].id
+  subnet_ids      = aws_subnet.devops[*].id
 
   scaling_config {
     desired_size = 3
@@ -116,6 +124,7 @@ resource "aws_eks_node_group" "devops" {
   }
 }
 
+# IAM Role for EKS Cluster
 resource "aws_iam_role" "devops_cluster_role" {
   name = "devops-cluster-role"
 
@@ -140,6 +149,7 @@ resource "aws_iam_role_policy_attachment" "devops_cluster_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
+# IAM Role for EKS Nodes
 resource "aws_iam_role" "devops_node_group_role" {
   name = "devops-node-group-role"
 
